@@ -29,7 +29,7 @@ import {
   publishDataFile,
 } from "./data-paths";
 import { roamgateEnv } from "./environment";
-import { loadOrCreateAuthToken } from "./auth-token";
+import { assertValidAuthPassword, loadOrCreateAuthToken } from "./auth-token";
 import {
   browserUrlFor,
   getLanIPs,
@@ -363,6 +363,15 @@ interface ServiceAccess {
   usesFixedPassword: boolean;
 }
 
+function servicePassword(contents: string): string {
+  const password =
+    readEnvironmentValue(contents, "ROAMGATE_PASSWORD") ??
+    readEnvironmentValue(contents, "HERDR_GUI_PASSWORD") ??
+    "";
+  if (password) assertValidAuthPassword(password);
+  return password;
+}
+
 function prepareServiceAccess(
   configPath: string,
   launchd: boolean = false,
@@ -408,17 +417,9 @@ function prepareServiceAccess(
         readEnvironmentValue(contents, "HERDR_GUI_TLS_KEY"),
     ),
   );
-  const password =
-    readEnvironmentValue(contents, "ROAMGATE_PASSWORD") ??
-    readEnvironmentValue(contents, "HERDR_GUI_PASSWORD") ??
-    "";
+  const password = servicePassword(contents);
   const usesFixedPassword = password.length > 0;
-  if (
-    usesFixedPassword ||
-    host === "127.0.0.1" ||
-    host === "localhost" ||
-    host === "::1"
-  ) {
+  if (usesFixedPassword) {
     return { host, port, tls, usesFixedPassword };
   }
 
@@ -443,13 +444,6 @@ function printServiceAccess(
     log(`Open: ${browserUrlFor(access.host, access.port, access.tls)}`);
     return;
   }
-  if (!access.token) {
-    log(
-      `Open: ${browserUrlFor(access.host, access.port, access.tls)} (local access)`,
-    );
-    return;
-  }
-
   log(`Login token: ${access.token}`);
   log(`Token file: ${access.tokenPath}`);
   log(
@@ -701,6 +695,11 @@ function installService(
     runtime.homeDir,
     runtime.appDataDir,
   );
+  const existingConfig = [paths.config, legacy.config].find(existsSync);
+  if (existingConfig) {
+    assertSafeDataPath(existingConfig);
+    servicePassword(readFileSync(existingConfig, "utf8"));
+  }
   migrateDataFile(paths.config, legacy.config);
   migrateDataFile(
     join(dirname(paths.config), "auth-token"),
