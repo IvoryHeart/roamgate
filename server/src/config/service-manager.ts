@@ -363,10 +363,38 @@ interface ServiceAccess {
   usesFixedPassword: boolean;
 }
 
-function prepareServiceAccess(configPath: string): ServiceAccess {
+function prepareServiceAccess(
+  configPath: string,
+  launchd: boolean = false,
+): ServiceAccess {
   const contents = readFileSync(configPath, "utf8");
-  const host = readEnvironmentValue(contents, "HOST") || "127.0.0.1";
-  const configuredPort = readEnvironmentValue(contents, "PORT");
+  let host = readEnvironmentValue(contents, "HOST") || "127.0.0.1";
+  let configuredPort = readEnvironmentValue(contents, "PORT");
+  if (launchd) {
+    // Match the LaunchAgent's shell sourcing, including comments and expansion.
+    const result = Bun.spawnSync([
+      "/bin/sh",
+      "-c",
+      'set -a; if [ -f "$1" ]; then . "$1"; fi; printf "\\0%s\\0%s" "${HOST-127.0.0.1}" "${PORT-8787}"',
+      "roamgate-service",
+      configPath,
+    ]);
+    const [, resolvedHost, resolvedPort] = result.stdout
+      .toString()
+      .split("\0")
+      .slice(-3);
+    if (
+      result.exitCode !== 0 ||
+      resolvedHost === undefined ||
+      resolvedPort === undefined
+    ) {
+      throw new Error(
+        `cannot load launchd service config ${configPath}: ${result.stderr.toString().trim() || "shell did not return HOST/PORT"}`,
+      );
+    }
+    host = resolvedHost;
+    configuredPort = resolvedPort;
+  }
   const port = Number(configuredPort || 8787);
   if (!Number.isInteger(port) || port < 1 || port > 65_535) {
     throw new Error(`invalid PORT in ${configPath}: ${configuredPort}`);
@@ -679,7 +707,10 @@ function installService(
     join(dirname(legacy.config), "auth-token"),
   );
   const environmentCreated = ensureEnvironmentFile(paths.config);
-  const access = prepareServiceAccess(paths.config);
+  const access = prepareServiceAccess(
+    paths.config,
+    platform === "launchd" && runCommand === defaultRunCommand,
+  );
   if (paths.stdoutLog) mkdirSync(dirname(paths.stdoutLog), { recursive: true });
   const customSystemdExecStart =
     platform === "systemd"
