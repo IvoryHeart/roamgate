@@ -439,6 +439,41 @@ function printServiceAccess(
   }
 }
 
+function assertLaunchdListenerAvailable(
+  host: string,
+  port: number,
+  previousJobLoaded: boolean,
+): void {
+  // launchctl bootout can return before the previous process releases its port.
+  const deadline = Date.now() + (previousJobLoaded ? 5_000 : 0);
+  for (;;) {
+    try {
+      const listener = Bun.listen({
+        hostname: host,
+        port,
+        exclusive: true,
+        socket: { data() {} },
+      });
+      listener.stop(true);
+      return;
+    } catch (cause) {
+      const error = cause instanceof Error ? cause : new Error(String(cause));
+      const code = (cause as NodeJS.ErrnoException | null)?.code;
+      const occupied =
+        code === "EADDRINUSE" || /port .* in use/i.test(error.message);
+      if (!occupied) throw error;
+      if (Date.now() >= deadline) {
+        throw new Error(
+          `Cannot listen on ${host}:${port}: the port is already in use. ` +
+            "Stop the other process or set PORT to a free port in the preserved roamgate.env, then reinstall the service.",
+          { cause },
+        );
+      }
+      Bun.sleepSync(100);
+    }
+  }
+}
+
 function serviceExists(
   platform: ServicePlatform,
   runtime: ServiceRuntime,
@@ -680,6 +715,10 @@ function installService(
       code = 0;
     }
     if (code === 0) {
+      // Bootstrap registers the job before its child tries to bind the port.
+      if (runCommand === defaultRunCommand) {
+        assertLaunchdListenerAvailable(access.host, access.port, loaded);
+      }
       code = runCommand(["launchctl", "bootstrap", domain, paths.definition]);
     }
   } else {
