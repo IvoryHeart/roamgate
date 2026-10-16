@@ -30,6 +30,7 @@ import {
 } from "./mobileControlsPlacement";
 import { useMobileControlsDrag } from "./components/useMobileControlsDrag";
 import { LAYOUT_CHANGE_EVENT, useLayoutPreferences } from "./layoutPreferences";
+import { useSystemBack } from "./systemBack";
 import {
   shortcutMatches,
   shortcutTitle,
@@ -1675,6 +1676,14 @@ export default function App() {
       });
     }
   }, [mobile, updateInspectorState]);
+  // The phone's Back closes the tab sheet, then returns from Workspaces,
+  // Files, Changes, Assistant or Annotations to the session.
+  useSystemBack(
+    mobileTabSheetOpen,
+    () => setMobileTabSheetOpen(false),
+    "popup",
+  );
+  useSystemBack(mobileView !== "session", activateTerminalSurface, "panel");
   const toggleSidebar = useCallback(() => {
     setMobileView("session");
     setSidebarHidden((value) => !value);

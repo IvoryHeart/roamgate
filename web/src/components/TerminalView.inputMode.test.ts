@@ -161,6 +161,7 @@ async function registerDomTests() {
   }));
   mock.module("../layoutPreferences", () => ({
     isMobileLayout: () => true,
+    useLayoutPreferences: () => ({ mobile: true }),
     LAYOUT_CHANGE_EVENT: "test-layout-change",
   }));
   mock.module("./CreateWorkspaceDialog", () => ({
