@@ -182,11 +182,13 @@ Drafts stay in this browser and re-anchor to changed files on refresh.
 - Floating terminal shortcuts (a `2×8` grid plus side buttons) are customizable
   under **Configuration > Behavior > Mobile terminal shortcuts** and can be
   dragged to either edge.
-- The **Type** button opens an input dock with two modes: **Composer** (edit a
-  draft with IME, dictation, and images; **Send** adds Enter) and **Direct**
-  (keys go straight to the terminal). Its tap raises the keyboard in either
-  mode; afterwards, sends, scrolling, and shortcut actions leave a dismissed
-  keyboard closed.
+- An input bar below the terminal output opens an input dock with two modes:
+  **Message…** opens **Composer** (edit a draft with IME, dictation, and
+  images; **Send** adds Enter) with the keyboard raised, and the terminal
+  button beside it opens **Direct** (keys go straight to the terminal). The
+  bar sits in the layout, so it never covers output, and shows
+  **Continue draft…** while a draft is unsent. Afterwards, sends, scrolling,
+  and shortcut actions leave a dismissed keyboard closed.
 - The phone's Back gesture or button closes the tab sheet, then the input dock
   or a mobile view such as Workspaces, Files, Changes or Ranger, one per
   press, before leaving the page.
