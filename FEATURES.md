@@ -189,9 +189,9 @@ Drafts stay in this browser and re-anchor to changed files on refresh.
   bar sits in the layout, so it never covers output, and shows
   **Continue draft…** while a draft is unsent. Afterwards, sends, scrolling,
   and shortcut actions leave a dismissed keyboard closed.
-- The phone's Back gesture or button closes the tab sheet, then the input dock
-  or a mobile view such as Workspaces, Files, Changes or Ranger, one per
-  press, before leaving the page.
+- The phone's Back gesture or button closes the tab sheet or the **⋮** menu,
+  then the input dock or a mobile view such as Workspaces, Files, Changes or
+  Ranger, one per press, before leaving the page.
 - The `>_` button in Composer offers slash commands for Claude Code, Codex, Pi,
   Kimi Code, Grok Build, and Antigravity CLI.
 - Install as a PWA for an app-style window; see

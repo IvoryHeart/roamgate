@@ -1677,13 +1677,14 @@ export default function App() {
       });
     }
   }, [mobile, updateInspectorState]);
-  // The phone's Back closes the tab sheet, then returns from Workspaces,
-  // Files, Changes, Assistant or Annotations to the session.
+  // The phone's Back closes the tab sheet or the ⋮ menu, then returns from
+  // Workspaces, Files, Changes, Assistant or Annotations to the session.
   useSystemBack(
     mobileTabSheetOpen,
     () => setMobileTabSheetOpen(false),
     "popup",
   );
+  useSystemBack(mobileMoreOpen, () => setMobileMoreOpen(false), "popup");
   useSystemBack(mobileView !== "session", activateTerminalSurface, "panel");
   const toggleSidebar = useCallback(() => {
     setMobileView("session");
