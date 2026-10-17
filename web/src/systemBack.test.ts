@@ -203,6 +203,29 @@ async function registerDomTests() {
     expect(at()).toBe("/a");
   });
 
+  test("Back pushes no entry, so a browser cannot skip the page on the next Back", async () => {
+    // Browsers skip entries a page pushes without a user gesture; each layer's
+    // guard is pushed when it opens, never while handling Back.
+    await start();
+    await set(["composer"]);
+    await set(["composer", "sheet"]);
+    const pushState = history.pushState;
+    let pushes = 0;
+    history.pushState = (...args: Parameters<typeof pushState>) => {
+      pushes++;
+      pushState(...args);
+    };
+    await userBack();
+    expect(closed).toEqual(["sheet"]);
+    await userBack();
+    expect(closed).toEqual(["sheet", "composer"]);
+    expect([at(), guarded()]).toEqual(["/b", false]);
+    history.pushState = pushState;
+    expect(pushes).toBe(0);
+    await userBack();
+    expect(at()).toBe("/a");
+  });
+
   test("the higher level closes first when layers register together", async () => {
     await start();
     await set(["sheet", "composer"]);
