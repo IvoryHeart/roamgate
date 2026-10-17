@@ -50,6 +50,50 @@ async function registerDomTests() {
   const { initializeLayoutPreferences, updateLayoutPreferences } = await import(
     "./layoutPreferences"
   );
+  // Model only standard history operations. Traversals complete on an event,
+  // never a wall-clock sleep (happy-dom does not implement session history).
+  let entries: { state: object | null; url: string }[] = [
+    { state: null, url: "/" },
+  ];
+  let index = 0;
+  const traversals: (() => void)[] = [];
+  const history = {
+    get state() {
+      return entries[index]!.state;
+    },
+    get length() {
+      return entries.length;
+    },
+    pushState(state: object | null, _unused: string, url?: string) {
+      entries = entries.slice(0, index + 1);
+      entries.push({ state, url: url ?? entries[index]!.url });
+      index++;
+    },
+    replaceState(state: object | null, _unused: string, url?: string) {
+      entries[index] = { state, url: url ?? entries[index]!.url };
+    },
+    back() {
+      move(-1);
+    },
+    forward() {
+      move(1);
+    },
+  };
+  function move(delta: number) {
+    traversals.push(() => {
+      const next = index + delta;
+      if (next < 0 || next >= entries.length) return;
+      index = next;
+      browser.dispatchEvent(
+        new browser.PopStateEvent("popstate", { state: history.state }),
+      );
+    });
+  }
+  Object.defineProperty(browser, "history", { value: history });
+  // Simulate a refresh starting on a guard, before the module is imported.
+  history.pushState(null, "", "/a");
+  history.pushState(null, "", "/b");
+  history.pushState({ roamgateBack: true }, "");
   const { useSystemBack } = await import("./systemBack");
 
   type Name = "sheet" | "composer" | "files";
@@ -91,10 +135,20 @@ async function registerDomTests() {
     open = new Set(names);
     render();
   }
-  const settle = () =>
-    act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 30));
-    });
+  const settle = async () => {
+    // Each traversal can schedule a React commit and one guard reconcile.
+    for (let turn = 0; turn < 8; turn++) {
+      await act(async () => {
+        await Promise.resolve();
+        for (const complete of traversals.splice(0)) complete();
+      });
+      if (!traversals.length) {
+        await Promise.resolve();
+        if (!traversals.length) return;
+      }
+    }
+    throw new Error("history traversal loop");
+  };
   async function set(names: Name[]) {
     await act(async () => show(names));
     await settle();
@@ -107,7 +161,7 @@ async function registerDomTests() {
     typeof browser.history.state === "object" &&
     browser.history.state !== null &&
     "roamgateBack" in browser.history.state;
-  const at = () => browser.location.pathname;
+  const at = () => entries[index]!.url;
   // Every case starts on /b, reached from /a, with nothing open.
   async function start() {
     await set([]);
@@ -118,6 +172,13 @@ async function registerDomTests() {
 
   initializeLayoutPreferences();
   updateLayoutPreferences({ mode: "mobile" });
+
+  test("refresh on an empty guard returns to its base without a duplicate Back stop", async () => {
+    await settle();
+    expect([at(), guarded()]).toEqual(["/b", false]);
+    await userBack();
+    expect(at()).toBe("/a");
+  });
 
   test("one Back leaves the page after layers close together", async () => {
     await start();
@@ -145,10 +206,10 @@ async function registerDomTests() {
   test("the higher level closes first when layers register together", async () => {
     await start();
     await set(["sheet", "composer"]);
-    updateLayoutPreferences({ mode: "desktop" });
+    await act(async () => updateLayoutPreferences({ mode: "desktop" }));
     await settle();
     expect(guarded()).toBe(false);
-    updateLayoutPreferences({ mode: "mobile" });
+    await act(async () => updateLayoutPreferences({ mode: "mobile" }));
     await settle();
     await userBack();
     expect(closed).toEqual(["sheet"]);
@@ -159,11 +220,9 @@ async function registerDomTests() {
   test("a layer opened while a Back is pending keeps its entry", async () => {
     await start();
     await set(["sheet"]);
-    await act(async () => {
-      show([]);
-      await Promise.resolve();
-      show(["files"]);
-    });
+    await act(async () => show([]));
+    expect(traversals).toHaveLength(1);
+    await act(async () => show(["files"]));
     await settle();
     expect([open.has("files"), guarded(), at()]).toEqual([true, true, "/b"]);
     await userBack();
@@ -172,12 +231,65 @@ async function registerDomTests() {
     expect(at()).toBe("/a");
   });
 
-  test("unmounting leaves history alone", async () => {
+  test("Forward at the end still lets one Back leave the empty guard", async () => {
+    await start();
+    await set(["composer"]);
+    await set([]);
+    const length = history.length;
+    history.forward();
+    await settle();
+    expect([at(), guarded(), history.length]).toEqual(["/b", true, length]);
+    await userBack();
+    expect(at()).toBe("/a");
+  });
+
+  test("Forward and Back cross an empty guard without trapping later entries", async () => {
+    await start();
+    await set(["composer"]);
+    // A later same-document entry can remain beyond the obsolete guard.
+    history.pushState({ later: true }, "", "/c");
+    await set([]);
+    await userBack();
+    expect([at(), guarded()]).toEqual(["/b", false]);
+    expect(entries[entries.length - 1]).toEqual({
+      state: { later: true },
+      url: "/c",
+    });
+    history.forward();
+    await settle();
+    expect(at()).toBe("/c");
+    await userBack();
+    expect([at(), guarded()]).toEqual(["/b", false]);
+    await userBack();
+    expect(at()).toBe("/a");
+  });
+
+  test("pagehide does not traverse during document departure", async () => {
+    await start();
+    await set(["composer"]);
+    browser.dispatchEvent(new browser.Event("pagehide"));
+    await act(async () => root.unmount());
+    await settle();
+    expect(guarded()).toBe(true);
+    browser.dispatchEvent(new browser.Event("pageshow"));
+    await settle();
+    expect(guarded()).toBe(false);
+    root = createRoot(container);
+  });
+
+  test("StrictMode unmount and layout remount remove an unused guard", async () => {
     await start();
     await set(["composer"]);
     await act(async () => root.unmount());
     await settle();
-    expect([guarded(), at()]).toEqual([true, "/b"]);
+    expect([guarded(), at()]).toEqual([false, "/b"]);
     root = createRoot(container);
+    await act(async () => updateLayoutPreferences({ mode: "desktop" }));
+    await set(["composer"]);
+    expect(guarded()).toBe(false);
+    await userBack();
+    expect(at()).toBe("/a");
+    await act(async () => updateLayoutPreferences({ mode: "mobile" }));
+    await set([]);
   });
 }

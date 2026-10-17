@@ -313,6 +313,7 @@ export type TerminalWorkspaceFileRequest = {
 
 export function TerminalView({
   paneId,
+  visible = true,
   terminalTheme,
   terminalFontFamily,
   terminalFontScale,
@@ -326,6 +327,7 @@ export function TerminalView({
   onOpenWorkspaceFile,
 }: {
   paneId?: string;
+  visible?: boolean;
   terminalTheme: ITheme;
   terminalFontFamily: string;
   terminalFontScale: number;
@@ -602,7 +604,7 @@ export function TerminalView({
     [controlledComposerOpen, onComposerOpenChange],
   );
   useSystemBack(
-    composerOpen && isActivePane,
+    visible && composerOpen && isActivePane,
     () => setComposerOpen(false),
     "panel",
   );
