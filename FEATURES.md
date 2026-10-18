@@ -13,6 +13,9 @@ A Web/PWA client for a running [Herdr](https://herdr.dev) server.
   as you type. Leave the field blank to use Herdr's default directory.
 - Split, resize, focus, swap (drag the handle at a pane's top center), zoom, and
   close panes.
+- Drag a pane's handle onto another tab to move the pane there, or onto **+**
+  to give it a tab of its own. Hold it over a tab to open that tab, then drop
+  it on a pane's edge to place it on that side. Running programs keep going.
 - The command menu searches workspaces, worktrees, files, tabs, panes, and
   agents, and opens typed file paths.
 - Desktop **Zen mode** hides app chrome so the terminal fills the window.
@@ -93,8 +96,8 @@ See [History synchronization](docs/HISTORY.md).
 ## Ranger
 
 Ranger is an **experimental** assistant that answers questions about your
-workspaces and can manage them. Open it from the topbar, the mobile navigation
-capsule, or its shortcut.
+workspaces and can manage them. Open it from the topbar, the mobile **⋮** menu,
+or its shortcut.
 
 - **Setup:** connect a model provider in **Settings** and choose which
   workspaces Ranger may access (none by default). See
@@ -174,21 +177,37 @@ Drafts stay in this browser and re-anchor to changed files on refresh.
 
 - **Configuration > Appearance > Layout** selects Automatic, Mobile, or Desktop
   (`?layout=mobile|desktop|auto` overrides it).
+- The bottom bar holds **Message…**, **Direct**, **Tabs** (with the workspace's
+  tab count, red when another agent needs you) and **⋮**, a menu of views and tools: Terminal, Files,
+  Changes, Commits, Annotations, History, Ranger, and Workspaces.
 - Touch scrolls without opening the keyboard. Long-press selects text for
   **Copy**, **Add comment**, or link actions.
 - Floating terminal shortcuts (a `2×8` grid plus side buttons) are customizable
   under **Configuration > Behavior > Mobile terminal shortcuts** and can be
   dragged to either edge.
-- The **Type** button opens an input dock with two modes: **Composer** (edit a
-  draft with IME, dictation, and images; **Send** adds Enter) and **Direct**
-  (keys go straight to the terminal). Its tap raises the keyboard in either
-  mode; afterwards, sends, scrolling, and shortcut actions leave a dismissed
-  keyboard closed.
-- The phone's Back gesture or button closes the tab sheet, then the input dock
-  or a mobile view such as Workspaces, Files, Changes or Ranger, one per
-  press, before leaving the page.
-- The `>_` button in Composer offers slash commands for Claude Code, Codex, Pi,
-  Kimi Code, Grok Build, and Antigravity CLI.
+- **Message…** is the editable draft in the bottom bar, with IME,
+  dictation, images, and multiline input. Tapping it raises the keyboard and
+  reveals **Attachment**, **Keyboard shortcuts**, and **Commands**, in that
+  order. Tools expand above the same field, without a separate Composer dock.
+  **Insert** adds text without Enter; **Send** adds Enter. The terminal button
+  beside Message activates **Direct** (keys go straight to the terminal).
+  File and image uploads in Direct paste their paths into the terminal without
+  Enter; in Message they insert into the draft. If the original Direct target
+  changes during an upload, its paths stay in that pane's draft with a warning.
+  While editing a multiline draft (including visual wraps), Message expands
+  and temporarily hides Direct, Tabs, and **⋮**. Leaving the field restores
+  the single-line preview and navigation; tapping Message resumes editing.
+  Drafts stay in the field when collapsed. Sends, scrolling, and shortcut
+  actions leave a dismissed keyboard closed.
+  Secondary pages (including Ranger settings, Files, and Workspaces) keep only
+  the bottom input/navigation row. Returning to Terminal restores the tools and
+  shortcuts as left, without changing the draft/caret or reopening the keyboard.
+  Ordinary Tabs and **⋮** popups keep the underlying page's input-tool visibility.
+- The phone's Back gesture or button closes Tabs or **⋮**, then the visible input
+  tools or a mobile view such as Workspaces, Files, Changes or Ranger, one per
+  press, before leaving the page. Hidden input tools do not intercept a view's Back.
+- The **Commands** button in the input toolbar offers slash commands for
+  Claude Code, Codex, Pi, Kimi Code, Grok Build, and Antigravity CLI.
 - Install as a PWA for an app-style window; see
   [installation steps](README.md#install-as-a-pwa). **A PWA is not offline
   access**: Roamgate must stay reachable.
