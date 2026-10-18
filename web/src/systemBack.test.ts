@@ -292,6 +292,35 @@ async function registerDomTests() {
     expect(at()).toBe("/a");
   });
 
+  test("Forward crosses every empty layer guard at the end, and one Back leaves", async () => {
+    await start();
+    await set(["composer", "sheet"]);
+    await set([]);
+    const length = history.length;
+    history.forward();
+    await settle();
+    expect([at(), history.length]).toEqual(["/b", length]);
+    expect(history.state).toMatchObject({ roamgateBack: 2 });
+    await userBack();
+    expect(at()).toBe("/a");
+  });
+
+  test("Forward crosses every empty layer guard to a later entry", async () => {
+    await start();
+    await set(["composer", "sheet"]);
+    history.pushState({ later: true }, "", "/c");
+    await set([]);
+    await userBack();
+    expect([at(), guarded()]).toEqual(["/b", false]);
+    history.forward();
+    await settle();
+    expect(at()).toBe("/c");
+    await userBack();
+    expect([at(), guarded()]).toEqual(["/b", false]);
+    await userBack();
+    expect(at()).toBe("/a");
+  });
+
   test("Forward and Back cross an empty guard without trapping later entries", async () => {
     await start();
     await set(["composer"]);

@@ -137,16 +137,21 @@ if (typeof window !== "undefined") {
     }
     if (forwardBase !== undefined) {
       const id = forwardBase;
-      forwardBase = undefined;
-      if (
-        layers.size === 0 &&
-        !isGuard(event.state) &&
-        baseId(event.state) === id
-      ) {
+      if (layers.size === 0 && baseId(event.state) === id) {
+        if (isGuard(event.state)) {
+          // A layer stack can leave several consecutive obsolete guards.
+          // Keep crossing them in the same direction, without pushing history.
+          if (guardDepth(event.state) > guardDepth(from))
+            window.history.forward();
+          else window.history.back();
+          return;
+        }
+        forwardBase = undefined;
         backPending = true;
         window.history.back();
         return;
       }
+      forwardBase = undefined;
     }
     const id = baseId(event.state);
     if (
