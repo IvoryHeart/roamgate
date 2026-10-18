@@ -310,17 +310,68 @@
   }
 }
 
-/* ===== phone app bar: Tabs and the ⋮ menu ===== */
+/* ===== persistent phone input and navigation rail ===== */
+.mobile-bottom-bar,
 .mobile-appbar,
 .mobile-more-backdrop,
-.mobile-more-head {
+.mobile-more-head,
+.mobile-tab-sheet {
   display: none;
 }
 
 :where(html[data-layout="mobile"]) {
+  .mobile-bottom-bar {
+    position: relative;
+    /* Keep navigation reachable above More's backdrop (130), below its
+       panel (132). Application Menu lifts its whole topbar context. */
+    z-index: 131;
+    margin-bottom: var(--keyboard-inset-composer-gap, 0px);
+    display: block;
+    flex: 0 0 auto;
+    min-width: 0;
+    min-height: calc(
+      max(48px, calc(48px / var(--ui-scale, 1))) +
+      8px +
+      env(safe-area-inset-bottom, 0px)
+    );
+    padding: 4px calc(8px + env(safe-area-inset-right, 0px))
+      calc(4px + env(safe-area-inset-bottom, 0px))
+      calc(8px + env(safe-area-inset-left, 0px));
+    background: var(--terminal-bg);
+  }
+
+  /* The fixed menu cannot escape the topbar's stacking context. */
+  .topbar:has(.config-dropdown) {
+    z-index: 134;
+  }
+
+  .mobile-bottom-input {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
   .mobile-appbar {
+    position: absolute;
+    right: calc(8px + env(safe-area-inset-right, 0px));
+    /* Center 44px navigation on the 48px Message row, including when no
+       terminal is portalled here (empty workspaces, Files and Ranger). */
+    bottom: calc(
+      4px +
+      env(safe-area-inset-bottom, 0px) +
+      (
+        max(48px, calc(48px / var(--ui-scale, 1))) -
+        max(44px, calc(44px / var(--ui-scale, 1)))
+      ) /
+      2
+    );
     display: flex;
     align-items: center;
+  }
+
+  /* The active portal owns editing state, not App's draft business state.
+     Only focused multiline editing borrows the three navigation slots. */
+  .mobile-bottom-bar:has(.terminal-composer[data-expanded]) .mobile-appbar {
+    display: none;
   }
 
   /* The brand mark stays; its name and version make room for the app bar. */
@@ -334,6 +385,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    flex: 0 0 auto;
     width: max(44px, calc(44px / var(--ui-scale, 1)));
     height: max(44px, calc(44px / var(--ui-scale, 1)));
     padding: 0;
@@ -348,16 +400,46 @@
     opacity: 0.4;
   }
 
+  .terminal-mobile-direct[aria-pressed="true"],
   .mobile-appbar button[aria-pressed="true"],
   .mobile-appbar button[aria-expanded="true"] {
     background: var(--accent-soft);
+    color: var(--text-strong);
+  }
+
+  /* Borderless footer controls still need a visible keyboard focus cue;
+     the global button rule otherwise relies on a border and soft shadow. */
+  .terminal-mobile-direct:focus-visible,
+  .mobile-appbar button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    box-shadow: none;
+  }
+
+  @media (forced-colors: active) {
+    .terminal-mobile-direct[aria-pressed="true"],
+    .mobile-appbar button[aria-pressed="true"],
+    .mobile-appbar button[aria-expanded="true"] {
+      forced-color-adjust: none;
+      background: Highlight;
+      color: HighlightText;
+    }
+
+    .terminal-mobile-direct:focus-visible,
+    .mobile-appbar button:focus-visible {
+      outline-color: Highlight;
+    }
   }
 
   .mobile-appbar-count {
     position: absolute;
-    left: 24px;
-    top: 5px;
+    right: 2px;
+    top: 3px;
     min-width: 17px;
+    max-width: calc(100% - 4px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     height: 17px;
     padding: 0 4px;
     box-sizing: border-box;
@@ -385,29 +467,58 @@
     display: block;
     position: fixed;
     inset: 0;
-    z-index: 79;
+    z-index: 130;
     padding: 0;
     border: 0;
+    border-radius: 0;
     background: rgb(0 0 0 / 0.35);
   }
 
-  /* ⋮ menu anchored below the app bar, one labelled row per control.
+  /* ⋮ menu opens upward above the unchanged 48px Message rail, not the
+     smaller navigation buttons, one labelled row per control.
      `body` outranks the floating, collapsed and compact rules it restyles. */
+  body .app .mobile-tab-sheet,
   body .app[data-mobile-more] .mobile-controls-stack {
     position: fixed;
-    top: calc(60px + env(safe-area-inset-top, 0px));
+    top: auto;
     right: calc(8px + env(safe-area-inset-right, 0px));
-    bottom: auto;
+    bottom: calc(
+      max(48px, calc(48px / var(--ui-scale, 1))) +
+      16px +
+      env(safe-area-inset-bottom, 0px) +
+      var(--keyboard-inset-composer-gap, 0px) +
+      var(--keyboard-inset-content, var(--keyboard-inset-bottom, 0px))
+    );
     left: auto;
-    z-index: 80;
+    z-index: 132;
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    width: min(272px, calc(100vw - 32px));
+    /* App is the fixed containing block, including at CSS zoom. Viewport
+       units would overflow its narrower layout at 150% on a 320px phone. */
+    box-sizing: border-box;
+    width: min(
+      272px,
+      calc(
+        100% -
+        16px -
+        env(safe-area-inset-left, 0px) -
+        env(safe-area-inset-right, 0px)
+      )
+    );
     max-width: none;
-    max-height: calc(100dvh - 72px);
+    max-height: calc(
+      var(--app-height, 100dvh) -
+      max(48px, calc(48px / var(--ui-scale, 1))) -
+      32px -
+      env(safe-area-inset-top, 0px) -
+      env(safe-area-inset-bottom, 0px) -
+      var(--keyboard-inset-composer-gap, 0px) -
+      var(--keyboard-inset-content, var(--keyboard-inset-bottom, 0px))
+    );
     overflow-x: hidden;
     overflow-y: auto;
+    overscroll-behavior-y: contain;
     direction: ltr;
     translate: 0 0;
     padding: 4px 0 8px;
@@ -417,14 +528,55 @@
     box-shadow: var(--shadow-lg);
   }
 
-  body .app[data-mobile-more] .mobile-more-head {
+  body .app .mobile-popup-head {
+    position: sticky;
+    top: -4px;
+    z-index: 1;
+    flex: 0 0 auto;
+    background: var(--panel);
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    padding: 0 4px 0 16px;
+    padding: 2px 8px 4px 16px;
     color: var(--muted);
     font-size: 13px;
+  }
+
+  /* Keep the shared 30px close control quiet here, including its hover lift. */
+  body .app .mobile-popup-head .close-button {
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    box-shadow: none;
+    transform: none;
+  }
+
+  body .app .mobile-popup-head .close-button svg {
+    transform: none;
+  }
+
+  @media (hover: hover) {
+    body .app .mobile-popup-head .close-button:hover:not(:disabled) {
+      background: color-mix(in srgb, var(--muted) 8%, transparent);
+      color: var(--text);
+    }
+  }
+
+  body .app .mobile-popup-head .close-button:active:not(:disabled) {
+    background: color-mix(in srgb, var(--muted) 14%, transparent);
+    color: var(--text-strong);
+  }
+
+  body .app .mobile-popup-head .close-button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  @media (forced-colors: active) {
+    body .app .mobile-popup-head .close-button:focus-visible {
+      outline-color: Highlight;
+    }
   }
 
   body .app[data-mobile-more] .mobile-controls-stack .mobile-nav,
@@ -468,7 +620,7 @@
     gap: 14px;
     width: 100%;
     min-width: 0;
-    height: 48px;
+    height: max(48px, calc(48px / var(--ui-scale, 1)));
     padding: 0 16px;
     border: 0;
     border-radius: 0;
